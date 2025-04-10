@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Monte Carlo - Ações Brasileiras</title>
+  <style>
+    body {
+      background: linear-gradient(145deg, #0f2027, #203a43, #2c5364);
+      font-family: 'Courier New', monospace;
+      color: #00ffc6;
+      padding: 30px;
+      text-align: center;
+    }
+    input, select, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+    }
+    button {
+      background-color: #00ffc6;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0ff;
+      transform: scale(1.05);
+    }
+    canvas {
+      background: #000;
+      margin-top: 20px;
+      border: 2px solid #00ffc6;
+      border-radius: 8px;
+    }
+    #analise {
+      background: rgba(0, 0, 0, 0.5);
+      margin-top: 20px;
+      padding: 20px;
+      border: 1px dashed #00ffc6;
+      border-radius: 10px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>📈 Simulador Monte Carlo - Ações BR</h1>
+
+  <label for="acao">Escolha uma ação:</label>
+  <select id="acao">
+    <option value="PETR4">PETR4 (Petrobras)</option>
+    <option value="VALE3">VALE3 (Vale)</option>
+    <option value="ITUB4">ITUB4 (Itaú)</option>
+    <option value="BBDC4">BBDC4 (Bradesco)</option>
+    <option value="ABEV3">ABEV3 (Ambev)</option>
+    <option value="WEGE3">WEGE3 (Weg)</option>
+    <option value="BBAS3">BBAS3 (Banco do Brasil)</option>
+  </select>
+
+  <label>Anos: <input type="number" id="anos" value="1"></label>
+  <button onclick="simular()">Simular</button>
+
+  <canvas id="grafico" width="800" height="400"></canvas>
+  <div id="analise"></div>
+
+  <script>
+    const acoes = {
+      PETR4: { preco: 38, media: 12, vol: 30 },
+      VALE3: { preco: 65, media: 10, vol: 25 },
+      ITUB4: { preco: 30, media: 8, vol: 20 },
+      BBDC4: { preco: 18, media: 7, vol: 22 },
+      ABEV3: { preco: 15, media: 6, vol: 18 },
+      WEGE3: { preco: 40, media: 14, vol: 28 },
+      BBAS3: { preco: 50, media: 9, vol: 21 }
+    };
+
+    function simular() {
+      const ticker = document.getElementById('acao').value;
+      const anos = parseInt(document.getElementById('anos').value);
+      const dados = acoes[ticker];
+
+      const precoInicial = dados.preco;
+      const retornoMedio = dados.media / 100;
+      const volatilidade = dados.vol / 100;
+
+      const dias = anos * 252;
+      const simulacoes = 100;
+
+      const canvas = document.getElementById('grafico');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const resultadosFinais = [];
+
+      for (let s = 0; s < simulacoes; s++) {
+        let preco = precoInicial;
+        ctx.beginPath();
+
+        for (let d = 0; d < dias; d++) {
+          const rand = Math.random();
+          const z = Math.sqrt(-2 * Math.log(rand)) * Math.cos(2 * Math.PI * rand);
+          const dt = 1 / 252;
+          preco *= Math.exp((retornoMedio - 0.5 * volatilidade ** 2) * dt + volatilidade * Math.sqrt(dt) * z);
+
+          const x = (d / dias) * canvas.width;
+          const y = canvas.height - ((preco / precoInicial) * 150);
+          if (d === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+
+        resultadosFinais.push(preco);
+        ctx.strokeStyle = `hsla(${s * 10 % 360}, 100%, 60%, 0.3)`;
+        ctx.stroke();
+      }
+
+      analisarResultados(resultadosFinais, precoInicial, ticker);
+    }
+
+    function analisarResultados(resultados, precoInicial, ticker) {
+      const media = resultados.reduce((a, b) => a + b, 0) / resultados.length;
+      const desvio = Math.sqrt(resultados.map(v => (v - media) ** 2).reduce((a, b) => a + b) / resultados.length);
+      const perdas = resultados.filter(r => r < precoInicial).length;
+      const probPerda = ((perdas / resultados.length) * 100).toFixed(2);
+
+      const resultadoHTML = `
+        <h2>📊 Análise da Ação ${ticker}</h2>
+        <p>📌 Preço médio estimado: <strong>R$ ${media.toFixed(2)}</strong></p>
+        <p>📉 Desvio padrão: <strong>R$ ${desvio.toFixed(2)}</strong></p>
+        <p>🛑 Probabilidade de perda: <strong>${probPerda}%</strong></p>
+        <p>✅ Intervalo esperado (1σ): <strong>R$ ${(media - desvio).toFixed(2)} a R$ ${(media + desvio).toFixed(2)}</strong></p>
+      `;
+      document.getElementById('analise').innerHTML = resultadoHTML;
+    }
+  </script>
+</body>
+</html>
